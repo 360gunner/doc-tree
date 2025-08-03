@@ -1,0 +1,505 @@
+[{
+  "_id": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "name": "Presentation structure d'organisation et strategie management",
+  "parent": null,
+  "file": null,
+  "completed": false,
+  "type": "parent_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:53:51.708Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d721c8fee4259f7da059"
+  },
+  "name": "Reglement Interieur",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": true,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:54:09.257Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d748c8fee4259f7da05c"
+  },
+  "name": "Charte de valeurs",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:54:48.600Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d75cc8fee4259f7da05f"
+  },
+  "name": "Charte de bon usage de l'outil informatique",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:55:08.391Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d77bc8fee4259f7da062"
+  },
+  "name": "Procedure de gestion de performance",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "parent_node",
+  "createdAt": {
+    "$date": "2025-04-30T07:55:39.319Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d791c8fee4259f7da068"
+  },
+  "name": "Marketing",
+  "parent": {
+    "$oid": "6811d77bc8fee4259f7da062"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:56:01.891Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d798c8fee4259f7da06b"
+  },
+  "name": "Commercial",
+  "parent": {
+    "$oid": "6811d77bc8fee4259f7da062"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T07:56:08.681Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "name": "Strategie 2MP SERVICES SARL",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "parent_node",
+  "createdAt": {
+    "$date": "2025-04-30T08:02:25.874Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d928c8fee4259f7da08b"
+  },
+  "name": "Strategie Marketing Digital",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:02:48.970Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d936c8fee4259f7da08e"
+  },
+  "name": "Strategie Commerciale",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:03:02.807Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d94bc8fee4259f7da093"
+  },
+  "name": "Business Plan",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:03:23.129Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d95ec8fee4259f7da098"
+  },
+  "name": "Business Model",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:03:42.913Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d973c8fee4259f7da09b"
+  },
+  "name": "Strategie de positionnement",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:04:03.609Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d986c8fee4259f7da09e"
+  },
+  "name": "Indicateur de performance",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:04:22.904Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d993c8fee4259f7da0a1"
+  },
+  "name": "Strategie RH",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:04:35.277Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d9aec8fee4259f7da0a4"
+  },
+  "name": "Mission",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:05:02.838Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d9b8c8fee4259f7da0a7"
+  },
+  "name": "Vision",
+  "parent": {
+    "$oid": "6811d911c8fee4259f7da088"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:05:12.237Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "name": "Procedure de gestion interne",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "parent_node",
+  "createdAt": {
+    "$date": "2025-04-30T08:05:41.163Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d9e3c8fee4259f7da0ad"
+  },
+  "name": "Procedure de recrutement",
+  "parent": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:05:55.672Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811d9f7c8fee4259f7da0b0"
+  },
+  "name": "Procedure d'achat et d'aquisition",
+  "parent": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:06:15.382Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da05c8fee4259f7da0b3"
+  },
+  "name": "procedure de separation des roles",
+  "parent": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:06:29.116Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da17c8fee4259f7da0b6"
+  },
+  "name": "Procedure generale de gestion de stock",
+  "parent": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:06:47.298Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da2ec8fee4259f7da0b9"
+  },
+  "name": "Procedure de comptabilite generale et tenue des comptes",
+  "parent": {
+    "$oid": "6811d9d5c8fee4259f7da0aa"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:07:10.835Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "name": "Procedure d'audit interne",
+  "parent": {
+    "$oid": "6811d70fc8fee4259f7da056"
+  },
+  "file": null,
+  "completed": false,
+  "type": "parent_node",
+  "createdAt": {
+    "$date": "2025-04-30T08:07:29.423Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da81c8fee4259f7da0c5"
+  },
+  "name": "Procedure d'audit commercial",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:08:33.501Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da8fc8fee4259f7da0c8"
+  },
+  "name": "procedure d'audit marketing",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:08:47.903Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811da9dc8fee4259f7da0cb"
+  },
+  "name": "Procedure d'audit informatique",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:09:01.179Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6811daafc8fee4259f7da0ce"
+  },
+  "name": "Procedure de cloture des comptes",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-04-30T08:09:19.623Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "68245530d0ef18de35361ca8"
+  },
+  "name": "Procedure d'audit general",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "child_document",
+  "createdAt": {
+    "$date": "2025-05-14T08:32:48.543Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6824554bd0ef18de35361cad"
+  },
+  "name": "Procedure d'audit comptabilite et finance",
+  "parent": {
+    "$oid": "6811da41c8fee4259f7da0bc"
+  },
+  "file": null,
+  "completed": false,
+  "type": "parent_document",
+  "createdAt": {
+    "$date": "2025-05-14T08:33:15.397Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "688e0dccb92172ef9e7b1d23"
+  },
+  "name": "RH",
+  "parent": {
+    "$oid": "6811d77bc8fee4259f7da062"
+  },
+  "file": null,
+  "completed": true,
+  "type": "child_document",
+  "referenceFormat": {
+    "sequenceLength": 4,
+    "categoryMode": "all",
+    "separator": "/",
+    "pattern": ""
+  },
+  "versions": [],
+  "createdAt": {
+    "$date": "2025-08-02T13:08:28.927Z"
+  },
+  "__v": 0,
+  "updatedAt": {
+    "$date": "2025-08-02T13:44:31.229Z"
+  },
+  "updatedBy": null
+}]
