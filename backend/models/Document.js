@@ -11,6 +11,11 @@ const DocumentSchema = new mongoose.Schema({
   name: { type: String },
   reference: { type: String },
   files: [{ type: String }], // array of file URLs
+  // Public sharing for documents (dossiers)
+  shareEnabled: { type: Boolean, default: false },
+  shareToken: { type: String, default: null },
+  shareExpires: { type: Date, default: null },
+  sharePasswordHash: { type: String, default: null },
 });
 
 module.exports = mongoose.model('Document', DocumentSchema);

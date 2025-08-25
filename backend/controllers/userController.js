@@ -26,12 +26,17 @@ exports.getUser = async (req, res) => {
 // Create a new user
 exports.createUser = async (req, res) => {
   try {
-    const { username, password, roles = [] } = req.body;
-    // Validate roles as array of role IDs
-    const roleIds = roles.map(r => (typeof r === 'object' && r._id ? r._id : r));
+    const { username, password, roles = [], role } = req.body;
+    // Accept either 'roles' (array) or 'role' (single)
+    let roleIds = [];
+    if (roles && Array.isArray(roles) && roles.length) {
+      roleIds = roles.map(r => (typeof r === 'object' && r._id ? r._id : r));
+    } else if (role) {
+      roleIds = [typeof role === 'object' && role._id ? role._id : role];
+    }
     const user = new User({ username, password, roles: roleIds });
     await user.save();
-    res.json(await User.findById(user._id).populate('roles'));
+    res.json(await User.findById(user._id).select('-password').populate('roles'));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -53,6 +53,12 @@ const authService = {
     if (!res.data || !res.data.success) throw new Error('Registration failed');
     return { success: true };
   },
+  // Optional helper to register with multiple roles
+  registerWithRoles: async (username, password, roles = []) => {
+    const res = await api.post('/api/register', { username, password, roles });
+    if (!res.data || !res.data.success) throw new Error('Registration failed');
+    return { success: true };
+  }
 };
 
 // Organigram service (NEW: tree-based)
@@ -90,6 +96,19 @@ const organigramService = {
   // Get progress (percent completed)
   getProgress: async () => {
     const res = await api.get('/api/organigram/progress');
+    return res.data;
+  },
+  // Share/unshare a node
+  shareNode: async (id, { enabled = true, expiresInHours = 168, password } = {}) => {
+    const payload = { enabled, expiresInHours };
+    if (typeof password === 'string' && password.length > 0) payload.password = password;
+    const res = await api.post(`/api/organigram/nodes/${id}/share`, payload);
+    return res.data;
+  },
+  // Fetch public node by token (optionally with password)
+  getPublicByToken: async (token, password) => {
+    const config = password ? { headers: { 'X-Share-Password': password } } : undefined;
+    const res = await axios.get(`${API_BASE}/api/public/organigram/${token}`, config);
     return res.data;
   },
 };
@@ -158,6 +177,19 @@ const archiveService = {
     const res = await api.patch(`/api/documents/${documentId}`, updates);
     return { success: true, data: res.data };
   },
+  // Share/unshare a document (dossier)
+  async shareDocument(documentId, { enabled = true, expiresInHours = 168, password } = {}) {
+    const payload = { enabled, expiresInHours };
+    if (typeof password === 'string' && password.length > 0) payload.password = password;
+    const res = await api.post(`/api/documents/${documentId}/share`, payload);
+    return res.data;
+  },
+  // Fetch public document by token (no auth)
+  async getPublicDocument(token, password) {
+    const config = password ? { headers: { 'X-Share-Password': password } } : undefined;
+    const res = await axios.get(`${API_BASE}/api/public/document/${token}`, config);
+    return res.data;
+  },
   // --- category update/delete ---
   async updateCategory(categoryId, data) {
     const res = await api.patch(`/api/categories/${categoryId}`, data);
@@ -167,6 +199,18 @@ const archiveService = {
     const res = await api.delete(`/api/categories/${categoryId}`);
     return res;
   },
+};
+
+// Search service
+const searchService = {
+  async organigram(q) {
+    const res = await api.get(`/api/search/organigram`, { params: { q } });
+    return res.data;
+  },
+  async documents(q) {
+    const res = await api.get(`/api/search/documents`, { params: { q } });
+    return res.data;
+  }
 };
 
 // Global Settings service
@@ -207,6 +251,7 @@ const apiService = {
   auth: authService,
   organigram: organigramService,
   archive: archiveService,
+  search: searchService,
   uploadFiles: async (files) => {
     const formData = new FormData();
     Array.from(files).forEach(file => formData.append('files', file));

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download } from 'lucide-react';
+import { Download, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,7 +15,8 @@ const VersionsDialog = ({
   onOpenChange,
   versions = [],
   currentFile,
-  documentName = 'Document'
+  documentName = 'Document',
+  onShareClick,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,6 +68,18 @@ const VersionsDialog = ({
                       >
                         <Download className="h-4 w-4" />
                       </a>
+                      {typeof onShareClick === 'function' && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => onShareClick()}
+                          title="Partager par lien"
+                        >
+                          <LinkIcon className="h-4 w-4" />
+                        </Button>
+                      )}
                       {version.file === currentFile && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           Current

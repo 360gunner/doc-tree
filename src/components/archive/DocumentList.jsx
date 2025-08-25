@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useArchive } from "@/contexts/ArchiveContext";
-import { File, Plus, X, Upload } from "lucide-react";
+import { File, Plus, X, Upload, Link as LinkIcon, Copy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +34,40 @@ export default function DocumentList() {
   const [lastFetchDeps, setLastFetchDeps] = React.useState({ page, pageSize, filters, currentCategory: currentCategory });
   const isRestoring = useRef(true);
   const restoreState = useRef(null);
+
+  // Share dialog state for dossier documents
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedDocumentForShare, setSelectedDocumentForShare] = useState(null);
+  const [shareEnabled, setShareEnabled] = useState(true);
+  const [expiresInHours, setExpiresInHours] = useState(168);
+  const [sharePassword, setSharePassword] = useState('');
+  const [shareResultUrl, setShareResultUrl] = useState('');
+
+  const openShareForDocument = (doc) => {
+    setSelectedDocumentForShare(doc);
+    setShareDialogOpen(true);
+  };
+
+  const handleShareDocumentSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedDocumentForShare) return;
+    try {
+      const res = await apiService.archive.shareDocument(selectedDocumentForShare._id || selectedDocumentForShare.id, {
+        enabled: shareEnabled,
+        expiresInHours,
+        password: sharePassword && shareEnabled ? sharePassword : undefined,
+      });
+      const token = res?.token || (res?.url ? String(res.url).split('/').pop() : '');
+      const fullUrl = token ? `${window.location.origin}/share/${token}` : '';
+      setShareResultUrl(fullUrl);
+    } catch (err) {
+      console.error('Error generating share link for document:', err);
+    }
+  };
+
+  const copyShareUrl = () => {
+    if (shareResultUrl) navigator.clipboard.writeText(shareResultUrl);
+  };
 
   // Helper: flatten categories tree for select input
   const flattenCategories = (cats, prefix = "") => {
@@ -705,6 +739,17 @@ export default function DocumentList() {
                       document.name
                     )}
                   </CardTitle>
+                  {(canCrudCurrentCategory()) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => openShareForDocument(document)}
+                      title="Partager par lien"
+                    >
+                      <LinkIcon className="h-4 w-4" />
+                    </Button>
+                  )}
                   {hasPermission("admin") && (
                     <Button
                       variant="ghost"
@@ -786,6 +831,65 @@ export default function DocumentList() {
           </select>
         </div>
       )}
+
+      {/* Share Dialog for dossier documents */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Partager le document</DialogTitle>
+            <DialogDescription>
+              Générer un lien public optionnellement protégé par mot de passe.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleShareDocumentSubmit} className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                id="share-enabled"
+                type="checkbox"
+                checked={shareEnabled}
+                onChange={(e) => setShareEnabled(e.target.checked)}
+              />
+              <Label htmlFor="share-enabled">Activer le partage</Label>
+            </div>
+
+            <div>
+              <Label htmlFor="expiresInHours">Expiration (heures)</Label>
+              <Input
+                id="expiresInHours"
+                type="number"
+                min={1}
+                value={expiresInHours}
+                onChange={(e) => setExpiresInHours(Number(e.target.value) || 1)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="sharePassword">Mot de passe (optionnel)</Label>
+              <Input
+                id="sharePassword"
+                type="password"
+                placeholder="Laisser vide pour aucun mot de passe"
+                value={sharePassword}
+                onChange={(e) => setSharePassword(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button type="submit">Générer le lien</Button>
+              {shareResultUrl && (
+                <>
+                  <Input readOnly value={shareResultUrl} className="flex-1" />
+                  <Button type="button" variant="outline" onClick={copyShareUrl} title="Copier le lien">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+          </form>
+
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

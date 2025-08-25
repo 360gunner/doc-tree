@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Organigram from "./pages/Organigram";
 import Archive from "./pages/Archive";
 import NotFound from "./pages/NotFound";
+import SharePage from "./pages/SharePage.jsx";
 import Users from "./pages/Users";
 import Roles from "./pages/Roles";
 import GlobalSettingsPage from "./pages/GlobalSettings";
@@ -37,6 +38,7 @@ const App = () => (
                 <Route path="/users" element={<Users />} />
                 <Route path="/roles" element={<Roles />} />
                 <Route path="/global-settings" element={<GlobalSettingsPage />} />
+                <Route path="/share/:token" element={<SharePage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ArchiveProvider>

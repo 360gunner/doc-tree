@@ -11,6 +11,9 @@ const OrganigramNodeSchema = new mongoose.Schema({
     default: 'parent_document',
     required: true
   },
+  // Ordering and layout helpers for drag-and-drop
+  order: { type: Number, default: 0 },
+  position: { type: String, enum: ['left', 'right', 'center'], default: 'center' },
   versions: [{
     reference: { type: String, required: true },
     file: { type: String, required: true },
@@ -23,6 +26,11 @@ const OrganigramNodeSchema = new mongoose.Schema({
     separator: { type: String, default: '/' },
     pattern: { type: String, default: '' }
   },
+  // Public sharing
+  shareEnabled: { type: Boolean, default: false },
+  shareToken: { type: String, default: null },
+  shareExpires: { type: Date, default: null },
+  sharePasswordHash: { type: String, default: null },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

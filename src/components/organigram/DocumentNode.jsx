@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useOrganigram } from "@/contexts/OrganigramContext";
-import { Download, History, File, Folder, Plus, Upload, Edit, Trash2, ChevronDown, ChevronRight, CheckCircle, Circle, Pencil, X } from 'lucide-react';
+import { Download, History, File, Folder, Plus, Upload, Edit, Trash2, ChevronDown, ChevronRight, CheckCircle, Circle, Pencil, X, Link as LinkIcon, Copy } from 'lucide-react';
 import VersionsDialog from './VersionsDialog';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -32,6 +32,12 @@ export default function DocumentNode({ node, level = 0 }) {
   const [versionsDialogOpen, setVersionsDialogOpen] = useState(false);
   const [editName, setEditName] = useState(node.name);
   const [editType, setEditType] = useState(node.type || 'parent_document');
+  // Share dialog state (reuse dossier modal style)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareEnabled, setShareEnabled] = useState(true);
+  const [expiresInHours, setExpiresInHours] = useState(168);
+  const [sharePassword, setSharePassword] = useState('');
+  const [shareResultUrl, setShareResultUrl] = useState('');
 
   const hasChildren = node.children && node.children.length > 0;
   const isCompleted = !!node.file;
@@ -54,6 +60,31 @@ export default function DocumentNode({ node, level = 0 }) {
       }
       return false;
     }));
+  };
+
+  // Share handlers
+  const openShareForNode = () => {
+    setShareDialogOpen(true);
+  };
+
+  const handleShareNodeSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await apiService.organigram.shareNode(node._id, {
+        enabled: shareEnabled,
+        expiresInHours,
+        password: sharePassword && shareEnabled ? sharePassword : undefined,
+      });
+      const token = response?.token || (response?.url ? String(response.url).split('/').pop() : '');
+      const fullUrl = token ? `${window.location.origin}/share/${token}` : '';
+      setShareResultUrl(fullUrl);
+    } catch (error) {
+      console.error('Error generating public link:', error);
+    }
+  };
+
+  const copyShareUrl = () => {
+    if (shareResultUrl) navigator.clipboard.writeText(shareResultUrl);
   };
   const canView = () => {
     if (!user || !user.roles) return false;
@@ -158,6 +189,18 @@ export default function DocumentNode({ node, level = 0 }) {
             >
               <History className="h-4 w-4" />
             </Button>
+            {/* Share button - only if file exists and user can CRUD */}
+            {canCrud() && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={openShareForNode}
+                title="Partager par lien"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+            )}
           </>
         )}
         {/* Add child node button (CRUD right) */}
@@ -288,6 +331,66 @@ export default function DocumentNode({ node, level = 0 }) {
           ))}
         </div>
       )}
+
+      {/* Share Dialog for organigram nodes (matches dossier modal style) */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Partager le noeud</DialogTitle>
+            <DialogDescription>
+              Générer un lien public optionnellement protégé par mot de passe.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleShareNodeSubmit} className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                id="share-enabled"
+                type="checkbox"
+                checked={shareEnabled}
+                onChange={(e) => setShareEnabled(e.target.checked)}
+              />
+              <Label htmlFor="share-enabled">Activer le partage</Label>
+            </div>
+
+            <div>
+              <Label htmlFor="expiresInHours">Expiration (heures)</Label>
+              <Input
+                id="expiresInHours"
+                type="number"
+                min={1}
+                value={expiresInHours}
+                onChange={(e) => setExpiresInHours(Number(e.target.value) || 1)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="sharePassword">Mot de passe (optionnel)</Label>
+              <Input
+                id="sharePassword"
+                type="password"
+                placeholder="Laisser vide pour aucun mot de passe"
+                value={sharePassword}
+                onChange={(e) => setSharePassword(e.target.value)}
+                disabled={!shareEnabled}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button type="submit">Générer le lien</Button>
+              {shareResultUrl && (
+                <>
+                  <Input readOnly value={shareResultUrl} className="flex-1" />
+                  <Button type="button" variant="outline" onClick={copyShareUrl} title="Copier le lien">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+          </form>
+
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

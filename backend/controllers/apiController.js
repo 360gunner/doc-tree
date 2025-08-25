@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const Category = require('../models/Category');
 const Document = require('../models/Document');
 const OrganigramNode = require('../models/OrganigramNode');
@@ -8,6 +9,36 @@ const Role = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 const { generateReference } = require('../utils/referenceGenerator');
+
+// ----- Permission helpers -----
+async function getUserFromReq(req) {
+  if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) return null;
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id).populate({
+      path: 'roles',
+      populate: [{ path: 'organigramNodes.node' }, { path: 'archiveCategories.category' }]
+    });
+    return user;
+  } catch (_) {
+    return null;
+  }
+}
+
+function hasCrudOnNode(user, nodeId) {
+  if (!user) return false;
+  if (user.roles?.some(r => r.name === 'admin')) return true;
+  const ids = user.roles.flatMap(r => (r.organigramNodes || []).filter(n => n.permissions === 'crud').map(n => (n.node?._id?.toString?.() || n.node?.toString?.() || n.node)));
+  return ids.includes(nodeId.toString());
+}
+
+function hasCrudOnCategory(user, categoryId) {
+  if (!user) return false;
+  if (user.roles?.some(r => r.name === 'admin')) return true;
+  const ids = user.roles.flatMap(r => (r.archiveCategories || []).filter(c => c.permissions === 'crud').map(c => (c.category?._id?.toString?.() || c.category?.toString?.() || c.category)));
+  return ids.includes(categoryId.toString());
+}
 
 // Helper function to get documents for a category
 async function getDocumentsForCategory(categoryId) {
@@ -106,13 +137,19 @@ exports.getCurrentUser = async (req, res) => {
   }
 };
 
-// --- REGISTER USER (OPTIONAL, DEMO ONLY) ---
+// --- REGISTER USER (RESPECT ROLES) ---
 exports.register = async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, roles } = req.body;
   try {
     const exists = await User.findOne({ username });
     if (exists) return res.status(400).json({ error: 'Username already exists' });
-    const user = new User({ username, password, role });
+    let roleIds = [];
+    if (Array.isArray(roles) && roles.length) {
+      roleIds = roles.map(r => (typeof r === 'object' && r._id ? r._id : r));
+    } else if (role) {
+      roleIds = [typeof role === 'object' && role._id ? role._id : role];
+    }
+    const user = new User({ username, password, roles: roleIds });
     await user.save();
     res.json({ success: true });
   } catch (err) {
@@ -154,10 +191,17 @@ exports.getMissingDocuments = async (req, res) => {
   res.status(410).json({ error: 'This endpoint is deprecated. Use /api/organigram/missing for missing documents in the organigram tree.' });
 };
 
-// --- CATEGORY CREATE (with permission propagation) ---
+// --- CATEGORY CREATE (with permission check + propagation) ---
 exports.createCategory = async (req, res) => {
   const { name, parent, reference } = req.body;
   try {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    // If has parent, require CRUD on parent category for non-admins
+    if (parent && !hasCrudOnCategory(user, parent)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on parent category' });
+    }
     const cat = new Category({ 
       name, 
       parent: parent || null, 
@@ -194,6 +238,12 @@ exports.createCategory = async (req, res) => {
 exports.addDocumentToCategory = async (req, res) => {
   try {
     const { category, name, reference, fileUrls } = req.body;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (!hasCrudOnCategory(user, category)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on category' });
+    }
     const year = new Date().getFullYear();
     
     // Use the reference provided by the frontend
@@ -260,23 +310,49 @@ exports.getAllCategories = async (req, res) => {
 exports.getDocumentsByCategory = async (req, res) => {
   try {
     const { category, categories, page = 1, pageSize = 10, ...filters } = req.query;
-    const query = {};
-    // Support multiple categories (array or single)
+    // Authorization: require user and filter by allowed categories unless admin
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    const isAdmin = user.roles?.some(r => r.name === 'admin');
+
+    // Build category constraint from query params
+    let requestedCats = [];
     if (categories) {
       if (Array.isArray(categories)) {
-        query.category = { $in: categories };
+        requestedCats = categories;
       } else if (typeof categories === 'string') {
-        // If only one provided, still treat as array
-        query.category = { $in: [categories] };
+        requestedCats = [categories];
       }
     } else if (category) {
-      query.category = category;
+      requestedCats = [category];
     }
+
+    // Determine allowed categories for non-admins
+    let categoryConstraint = {};
+    if (!isAdmin) {
+      const allowedCats = user.roles
+        .flatMap(r => (r.archiveCategories || [])
+          .map(c => (c.category?._id?.toString?.() || c.category?.toString?.() || c.category)))
+        .filter(Boolean);
+      const uniqueAllowed = [...new Set(allowedCats)];
+      if (requestedCats.length) {
+        // Intersect requested with allowed
+        const reqSet = new Set(requestedCats.map(String));
+        const intersection = uniqueAllowed.filter(id => reqSet.has(String(id)));
+        categoryConstraint = { category: { $in: intersection.length ? intersection : ['__none__'] } };
+      } else {
+        categoryConstraint = { category: { $in: uniqueAllowed.length ? uniqueAllowed : ['__none__'] } };
+      }
+    } else {
+      if (requestedCats.length) categoryConstraint = { category: { $in: requestedCats } };
+    }
+
     // Apply filters (e.g., name, reference, createdAt)
+    const query = { ...categoryConstraint };
     if (filters.name) query.name = { $regex: filters.name, $options: 'i' };
     if (filters.reference) query.reference = { $regex: filters.reference, $options: 'i' };
     if (filters.createdAt) query.createdAt = { $gte: new Date(filters.createdAt) };
-    // Add more filters as needed
+
     const skip = (parseInt(page) - 1) * parseInt(pageSize);
     const total = await Document.countDocuments(query);
     const documents = await Document.find(query)
@@ -293,10 +369,17 @@ exports.getDocumentsByCategory = async (req, res) => {
 exports.deleteDocument = async (req, res) => {
   try {
     const { documentId } = req.params;
-    const deleted = await Document.findByIdAndDelete(documentId);
-    if (!deleted) {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    const doc = await Document.findById(documentId);
+    if (!doc) {
       return res.status(404).json({ error: 'Document not found' });
     }
+    if (!hasCrudOnCategory(user, doc.category)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on category' });
+    }
+    await Document.findByIdAndDelete(documentId);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -308,8 +391,14 @@ exports.updateDocument = async (req, res) => {
   try {
     const { documentId } = req.params;
     const updates = req.body;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
     const doc = await Document.findById(documentId);
     if (!doc) return res.status(404).json({ error: 'Document not found' });
+    if (!hasCrudOnCategory(user, doc.category)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on category' });
+    }
     // Only allow updating name and reference (add more fields as needed)
     if (updates.name !== undefined) doc.name = updates.name;
     if (updates.reference !== undefined) doc.referencePath = updates.reference;
@@ -321,12 +410,35 @@ exports.updateDocument = async (req, res) => {
 };
 
 // --- OrganigramNode CRUD and logic ---
-// Create a new node
+// Create a new node (with permission check + inheritance)
 exports.createOrganigramNode = async (req, res) => {
   try {
     const { name, parent, type } = req.body;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (parent) {
+      if (!hasCrudOnNode(user, parent)) {
+        const isAdmin = user.roles?.some(r => r.name === 'admin');
+        if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on parent node' });
+      }
+    } else {
+      // Creating a root node is admin-only
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: only admins can create root nodes' });
+    }
     const node = new OrganigramNode({ name, parent: parent || null, type });
     await node.save();
+    // Inherit CRUD permission from parent for all roles that have CRUD on parent
+    if (parent) {
+      const rolesWithCrud = await Role.find({ 'organigramNodes.node': parent, 'organigramNodes.permissions': 'crud' });
+      for (const role of rolesWithCrud) {
+        const already = (role.organigramNodes || []).some(n => n.node?.toString() === node._id.toString());
+        if (!already) {
+          role.organigramNodes.push({ node: node._id, permissions: 'crud' });
+          await role.save();
+        }
+      }
+    }
     res.json(node);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -484,12 +596,46 @@ exports.getOrganigramProgressNodes = async (req, res) => {
   }
 };
 
-// Update a node (rename, move)
+// Update a node (rename, move, reorder, change type)
 exports.updateOrganigramNode = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (!hasCrudOnNode(user, id)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on node' });
+    }
+    // If moving to a new parent, require CRUD on the new parent as well (unless admin)
+    if (Object.prototype.hasOwnProperty.call(updates, 'parent')) {
+      const newParentId = updates.parent;
+      if (newParentId) {
+        // Validate new parent exists
+        const newParent = await OrganigramNode.findById(newParentId);
+        if (!newParent) return res.status(400).json({ error: 'New parent not found' });
+        const isAdmin = user.roles?.some(r => r.name === 'admin');
+        if (!isAdmin && !hasCrudOnNode(user, newParentId)) {
+          return res.status(403).json({ error: 'Forbidden: no CRUD rights on new parent' });
+        }
+        // Prevent moving node under its own descendant to avoid cycles
+        const isDescendant = async (candidateParentId, targetId) => {
+          if (!candidateParentId) return false;
+          if (String(candidateParentId) === String(targetId)) return true;
+          const children = await OrganigramNode.find({ parent: candidateParentId }, '_id');
+          for (const child of children) {
+            if (await isDescendant(child._id, targetId)) return true;
+          }
+          return false;
+        };
+        if (await isDescendant(id, newParentId)) {
+          return res.status(400).json({ error: 'Invalid move: cannot move a node under its own descendant' });
+        }
+      } else {
+        // Moving to root: allow if user has CRUD on the node (already checked) or admin
+      }
+    }
+    // support move: parent, order, position, and type changes
     // Add updatedBy and updatedAt to the updates
     updates.updatedBy = req.user ? req.user._id : null;
     updates.updatedAt = new Date();
@@ -511,6 +657,12 @@ exports.updateOrganigramNode = async (req, res) => {
 exports.deleteOrganigramNode = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (!hasCrudOnNode(user, id)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: no CRUD rights on node' });
+    }
     // Recursively delete children
     const deleteRecursively = async nodeId => {
       const children = await OrganigramNode.find({ parent: nodeId });
@@ -523,6 +675,162 @@ exports.deleteOrganigramNode = async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+};
+
+// ----- Public sharing endpoints -----
+const crypto = require('crypto');
+
+exports.shareOrganigramNode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled = true, expiresInHours = 168, password } = req.body; // default 7 days
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (!hasCrudOnNode(user, id)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+    }
+    const updates = { shareEnabled: !!enabled };
+    if (enabled) {
+      updates.shareToken = crypto.randomBytes(16).toString('hex');
+      updates.shareExpires = new Date(Date.now() + expiresInHours * 3600 * 1000);
+      if (typeof password === 'string' && password.length > 0) {
+        const salt = await bcrypt.genSalt(10);
+        updates.sharePasswordHash = await bcrypt.hash(password, salt);
+      } else {
+        updates.sharePasswordHash = null;
+      }
+    } else {
+      updates.shareToken = null;
+      updates.shareExpires = null;
+      updates.sharePasswordHash = null;
+    }
+    const node = await OrganigramNode.findByIdAndUpdate(id, { $set: updates }, { new: true });
+    if (!node) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, token: node.shareToken, url: node.shareToken ? `/public/organigram/${node.shareToken}` : null });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+};
+
+exports.getPublicOrganigramNode = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const node = await OrganigramNode.findOne({ shareToken: token });
+    if (!node || !node.shareEnabled) return res.status(404).json({ error: 'Not found' });
+    if (node.shareExpires && node.shareExpires < new Date()) return res.status(410).json({ error: 'Link expired' });
+    // If password-protected, validate header
+    if (node.sharePasswordHash) {
+      const provided = req.get('X-Share-Password') || '';
+      const ok = await bcrypt.compare(provided, node.sharePasswordHash);
+      if (!ok) return res.status(401).json({ error: 'Password required or invalid' });
+    }
+    // Sanitize response
+    const out = node.toObject ? node.toObject() : node;
+    delete out.sharePasswordHash;
+    delete out.shareToken;
+    delete out.shareEnabled;
+    delete out.shareExpires;
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+};
+
+exports.shareDocument = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const { enabled = true, expiresInHours = 168, password } = req.body;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    // Require CRUD on the document's category
+    const doc = await Document.findById(documentId);
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    if (!hasCrudOnCategory(user, doc.category)) {
+      const isAdmin = user.roles?.some(r => r.name === 'admin');
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+    }
+    const updates = { shareEnabled: !!enabled };
+    if (enabled) {
+      updates.shareToken = crypto.randomBytes(16).toString('hex');
+      updates.shareExpires = new Date(Date.now() + expiresInHours * 3600 * 1000);
+      if (typeof password === 'string' && password.length > 0) {
+        const salt = await bcrypt.genSalt(10);
+        updates.sharePasswordHash = await bcrypt.hash(password, salt);
+      } else {
+        updates.sharePasswordHash = null;
+      }
+    } else {
+      updates.shareToken = null;
+      updates.shareExpires = null;
+      updates.sharePasswordHash = null;
+    }
+    const updated = await Document.findByIdAndUpdate(documentId, { $set: updates }, { new: true });
+    res.json({ success: true, token: updated.shareToken, url: updated.shareToken ? `/public/document/${updated.shareToken}` : null });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+};
+
+exports.getPublicDocument = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const doc = await Document.findOne({ shareToken: token });
+    if (!doc || !doc.shareEnabled) return res.status(404).json({ error: 'Not found' });
+    if (doc.shareExpires && doc.shareExpires < new Date()) return res.status(410).json({ error: 'Link expired' });
+    if (doc.sharePasswordHash) {
+      const provided = req.get('X-Share-Password') || '';
+      const ok = await bcrypt.compare(provided, doc.sharePasswordHash);
+      if (!ok) return res.status(401).json({ error: 'Password required or invalid' });
+    }
+    const out = doc.toObject ? doc.toObject() : doc;
+    delete out.sharePasswordHash;
+    delete out.shareToken;
+    delete out.shareEnabled;
+    delete out.shareExpires;
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+};
+
+// ----- Search endpoints -----
+exports.searchOrganigram = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    const isAdmin = user.roles?.some(r => r.name === 'admin');
+    const filter = q ? { name: { $regex: q, $options: 'i' } } : {};
+    if (isAdmin) {
+      const nodes = await OrganigramNode.find(filter).limit(50);
+      return res.json(nodes);
+    }
+    const allowed = user.roles.flatMap(r => (r.organigramNodes || []).map(n => (n.node?._id?.toString?.() || n.node?.toString?.() || n.node))).filter(Boolean);
+    const nodes = await OrganigramNode.find({ _id: { $in: allowed }, ...filter }).limit(50);
+    res.json(nodes);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+};
+
+exports.searchDocuments = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    const isAdmin = user.roles?.some(r => r.name === 'admin');
+    const docFilter = q ? { $or: [ { name: { $regex: q, $options: 'i' } }, { reference: { $regex: q, $options: 'i' } } ] } : {};
+    if (isAdmin) {
+      const docs = await Document.find(docFilter).limit(50);
+      return res.json(docs);
+    }
+    const allowedCats = user.roles.flatMap(r => (r.archiveCategories || []).map(c => (c.category?._id?.toString?.() || c.category?.toString?.() || c.category))).filter(Boolean);
+    const docs = await Document.find({ category: { $in: allowedCats }, ...docFilter }).limit(50);
+    res.json(docs);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 };
 
@@ -577,6 +885,13 @@ exports.uploadOrganigramFile = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // Authorization: require CRUD on node unless admin
+    const user = await User.findById(userId).populate('roles');
+    const isAdmin = user?.roles?.some(r => r.name === 'admin');
+    if (!isAdmin && !hasCrudOnNode(user, id)) {
+      return res.status(403).json({ error: 'Forbidden: no CRUD rights on node' });
+    }
+
     const node = await OrganigramNode.findById(id);
     if (!node) {
       return res.status(404).json({ error: 'Node not found' });
@@ -605,6 +920,7 @@ exports.uploadOrganigramFile = async (req, res) => {
         $set: {
           file: fileUrl,
           completed: true,
+          updatedBy: userId,
           updatedAt: new Date()
         }
       },
